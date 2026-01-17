@@ -1,0 +1,34 @@
+{
+    "max_msg_count": {
+        "description": "用于分析的最大消息量(条)",
+        "type": "int",
+        "slider": {
+            "min": 100,
+            "max": 1000,
+            "step": 10
+        },
+        "default": 500
+    },
+    "max_query_rounds": {
+        "description": "获取群消息的最大轮数(轮)",
+        "type": "int",
+        "slider": {
+            "min": 1,
+            "max": 80,
+            "step": 10
+        },
+        "default": 20
+    },
+    "provider_id": {
+        "description": "用于分析画像的LLM提供商",
+        "hint": "留空或者填写的提供商不存在时，则使用当前正在使用的LLM提供商",
+        "type": "string",
+        "default": "",
+        "_special": "select_provider"
+    },
+    "bot_name": {
+        "description": "BOT名称",
+        "type": "string",
+        "default": "BOT"
+    }
+}

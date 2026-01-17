@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* ... 基础 CSS 保持不变 ... */
+        :root {
+            --primary: #6c9e6d;
+            --bg: #fdfdfd;
+            --card-bg: #f4f8f4;
+            --text-main: #333;
+            --text-sub: #888;
+        }
+        body { font-family: "MiSans Global", sans-serif; background: #eee; padding: 20px; width: 500px; box-sizing: border-box; margin: 0;}
+        .container {
+            width: 100%; background: var(--bg); padding: 20px;
+            border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border: 1px dashed #ccc;
+            box-sizing: border-box;
+        }
+
+        /* ... 头部、统计图样式省略 (保持不变) ... */
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { color: var(--primary); margin: 0; font-size: 24px; }
+        .header p { color: var(--text-sub); font-size: 12px; margin-top: 5px; }
+        .section-title {
+            border-left: 4px solid var(--primary);
+            padding-left: 10px; font-weight: bold; color: var(--text-main);
+            margin: 25px 0 15px 0; font-size: 16px;
+        }
+        .stats-box { display: flex; gap: 10px; }
+        .card { background: var(--card-bg); border-radius: 8px; padding: 10px; flex: 1; }
+        .user-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .chart { display: flex; align-items: flex-end; height: 100px; gap: 4px; padding-top:10px;}
+        .bar { background: #c8e6c9; flex: 1; border-radius: 3px 3px 0 0; transition: height 0.3s; }
+        .bar:nth-child(even) { background: #a5d6a7; }
+
+        .topic-item { margin-bottom: 15px; position: relative; padding-left: 15px; }
+        .topic-item::before {
+            content: "•"; color: var(--primary); position: absolute; left: 0; font-size: 20px; line-height: 14px;
+        }
+        .topic-time { color: var(--primary); font-size: 12px; font-weight: bold; }
+
+        /* --- Markdown 内容样式 --- */
+        .markdown-render {
+            font-size: 13px; color: #444; margin-top: 4px; line-height: 1.6;
+        }
+        /* 针对 Markdown 生成标签的样式修正 */
+        .markdown-render p { margin: 0 0 5px 0; }
+        .markdown-render strong { color: #2e7d32; font-weight: 700; }
+        .markdown-render code {
+            background: #f0f0f0; padding: 2px 4px; border-radius: 4px;
+            font-family: Consolas, monospace; font-size: 0.9em; color: #c62828;
+        }
+        .markdown-render ul { margin: 5px 0; padding-left: 20px; }
+
+        .footer-note {
+            background: #fff8e1; border: 1px solid #ffe0b2;
+            border-radius: 10px; padding: 15px; font-size: 13px; color: #795548;
+            margin-top: 30px; position: relative;
+        }
+        .footer-note::before { content: "🌱"; position: absolute; top: -10px; left: 15px; background: #fff8e1; padding: 0 5px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{group_name}} 近期热点回顾</h1>
+            <p>观察日记 ({{ date }})</p>
+        </div>
+
+        <div class="stats-box">
+            <div class="card">
+                <div style="color:var(--primary); font-weight:bold; margin-bottom:8px;">🌿 活跃之星 Top 5</div>
+                {% for user in top_users %}
+                <div class="user-row">
+                    <span style="font-weight:bold; color:#555">{{ user.name }}</span>
+                    <span style="color:var(--primary)">{{ user.count }}条</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section-title">近期话题索引</div>
+        {% for topic in topics %}
+        <div class="topic-item">
+            <div class="topic-time">{{ topic.time_range }}</div>
+            <div class="markdown-render">{{ topic.summary }}</div>
+        </div>
+        {% endfor %}
+
+        <div class="footer-note">
+            <strong>纱织姐姐的悄悄话：</strong><br>
+            <div class="markdown-render" style="margin-top:5px;">{{ summary_text }}</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // 获取所有需要渲染的容器
+            const elements = document.querySelectorAll('.markdown-render');
+
+            elements.forEach(el => {
+                // 1. 获取原始文本 (Jinja2 填入的 Markdown)
+                // 使用 textContent 可能会丢失换行符，innerText 更好，
+                // 或者直接解析 innerHTML (前提是 Jinja 没有转义过度)
+                // 这里我们假设 Jinja 输出的是标准文本
+                const rawMarkdown = el.innerHTML;
+
+                // 2. 调用 marked.js 进行渲染
+                // { breaks: true } 允许回车即换行，不需要打两个空格
+                const htmlContent = marked.parse(rawMarkdown, { breaks: true });
+
+                // 3. 替换内容
+                el.innerHTML = htmlContent;
+            });
+        });
+    </script>
+</body>
+</html>
