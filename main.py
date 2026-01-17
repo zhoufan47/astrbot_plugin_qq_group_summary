@@ -7,6 +7,7 @@ from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 import traceback
 
+# --- 保持原有 HTML 模板不变 ---
 TMPL = '''
 <!DOCTYPE html>
 <html lang="zh">
@@ -14,7 +15,6 @@ TMPL = '''
     <meta charset="UTF-8">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* ... 基础 CSS 保持不变 ... */
         :root {
             --primary: #6c9e6d;
             --bg: #fdfdfd;
@@ -29,8 +29,6 @@ TMPL = '''
             border: 1px dashed #ccc;
             box-sizing: border-box;
         }
-
-        /* ... 头部、统计图样式省略 (保持不变) ... */
         .header { text-align: center; margin-bottom: 20px; }
         .header h1 { color: var(--primary); margin: 0; font-size: 24px; }
         .header p { color: var(--text-sub); font-size: 12px; margin-top: 5px; }
@@ -52,11 +50,9 @@ TMPL = '''
         }
         .topic-time { color: var(--primary); font-size: 12px; font-weight: bold; }
 
-        /* --- Markdown 内容样式 --- */
         .markdown-render {
             font-size: 13px; color: #444; margin-top: 4px; line-height: 1.6;
         }
-        /* 针对 Markdown 生成标签的样式修正 */
         .markdown-render p { margin: 0 0 5px 0; }
         .markdown-render strong { color: #2e7d32; font-weight: 700; }
         .markdown-render code {
@@ -82,7 +78,6 @@ TMPL = '''
             color: #aaa;
             font-family: Consolas, "Microsoft YaHei", sans-serif;
         }
-        /* 给 "Powered By" 加一点特殊的颜色点缀 */
         .copyright .brand {
             font-weight: bold;
             color: #999;
@@ -130,21 +125,10 @@ TMPL = '''
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // 获取所有需要渲染的容器
             const elements = document.querySelectorAll('.markdown-render');
-
             elements.forEach(el => {
-                // 1. 获取原始文本 (Jinja2 填入的 Markdown)
-                // 使用 textContent 可能会丢失换行符，innerText 更好，
-                // 或者直接解析 innerHTML (前提是 Jinja 没有转义过度)
-                // 这里我们假设 Jinja 输出的是标准文本
                 const rawMarkdown = el.innerHTML;
-
-                // 2. 调用 marked.js 进行渲染
-                // { breaks: true } 允许回车即换行，不需要打两个空格
                 const htmlContent = marked.parse(rawMarkdown, { breaks: true });
-
-                // 3. 替换内容
                 el.innerHTML = htmlContent;
             });
         });
@@ -153,26 +137,22 @@ TMPL = '''
 </html>
 '''
 
-@register("group_summary", "YourName", "群聊总结生成器", "1.2.0")
+
+@register("group_summary", "YourName", "群聊总结生成器", "1.3.0")
 class GroupSummaryPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
         self.config = config or {}
-        self.max_msg_count = self.config["max_msg_count"] #最大获取消息数
-        self.max_query_rounds = self.config["max_query_rounds"] #最大查询轮数
-        self.bot_name = self.config["bot_name"] #机器人名称
-        self.msg_token_limit = self.config["token_limit"] #每次总结的token上限
+        self.max_msg_count = self.config.get("max_msg_count", 2000)
+        self.max_query_rounds = self.config.get("max_query_rounds", 10)
+        self.bot_name = self.config.get("bot_name", "纱织")
+        self.msg_token_limit = self.config.get("token_limit", 6000)
 
-    # --- 辅助方法：调用 NapCat API 获取历史消息 ---
-    async def fetch_group_history(self, bot, group_id: str):
-        """
-        分页获取群聊历史消息
-        逻辑：获取一批 -> 拿到最旧的一条 seq -> 以该 seq 为终点再获取一批 -> 循环
-        """
+    async def fetch_group_history(self, bot, group_id: str, hours_limit: int = 24):
+        """分页获取群聊历史消息"""
         all_messages = []
-        message_seq = 0 # 用于标记下一次获取的“截止点”
-
-        cutoff_time = time.time() - (24 * 3600)
+        message_seq = 0
+        cutoff_time = time.time() - (hours_limit * 3600)
 
         logger.info(f"开始获取群 {group_id} 消息，目标上限: {self.max_msg_count}条 / {self.max_query_rounds}轮")
 
@@ -195,6 +175,11 @@ class GroupSummaryPlugin(Star):
                 round_messages = resp["messages"]
                 if not round_messages:
                     break
+
+                # 更新 seq 以获取更早的消息
+                # 假设返回的消息是按时间倒序或正序，我们需要找到最“旧”的一条的ID
+                # NapCat get_group_msg_history 通常返回的是 [oldest ... newest]
+                # 翻页时，通常取最旧一条的 seq 作为下一次的起点
                 message_seq = round_messages[0]["message_id"]
 
                 batch_msgs = round_messages
@@ -228,38 +213,23 @@ class GroupSummaryPlugin(Star):
                 logger.info(f"Fetch loop error: {e}")
                 break
 
-        # 去重并按时间排序 (防止API返回重叠数据)
-        # 使用 message_id 作为唯一键
-        # unique_msgs = {msg['message_id']: msg for msg in all_messages if 'message_id' in msg}
-        # sorted_msgs = sorted(unique_msgs.values(), key=lambda x: x.get('time', 0))
-
         return all_messages
 
-    # --- 辅助方法：纯 Python 统计数据 (替代 SQL) ---
     def process_messages(self, messages: list, hours_limit: int = 24):
-        """
-        处理原始消息列表：
-        1. 过滤时间范围
-        2. 统计 Top 5 用户
-        3. 统计每小时趋势
-        4. 生成 LLM 用的纯文本日志
-        """
+        """纯 Python 统计数据"""
         cutoff_time = time.time() - (hours_limit * 3600)
-
         valid_msgs = []
         user_counter = Counter()
         trend_counter = Counter()
 
-        # 遍历消息进行过滤和统计
         for msg in messages:
-            # NapCat 返回的 timestamp 通常是 int (秒)
             ts = msg.get("time", 0)
             if ts < cutoff_time:
                 continue
 
             sender = msg.get("sender", {})
             nickname = sender.get("card") or sender.get("nickname") or "未知用户"
-            content = msg.get("raw_message") or ""  # 获取纯文本或 CQ 码文本
+            content = msg.get("raw_message") or ""
 
             # 1. 收集有效消息
             valid_msgs.append({
@@ -273,8 +243,6 @@ class GroupSummaryPlugin(Star):
 
             # 3. 统计小时趋势
             hour_str = datetime.datetime.fromtimestamp(ts).strftime("%H")
-            # 简单去掉前导0 (可选，为了匹配 CSS ID 或 字典 Key)
-            # hour_int = int(hour_str)
             trend_counter[str(int(hour_str))] += 1
 
         # 整理 Top 5
@@ -288,64 +256,55 @@ class GroupSummaryPlugin(Star):
 
         return valid_msgs, top_users, dict(trend_counter), chat_log
 
-    @filter.command("总结群聊")
-    @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
-    async def summarize_group(self, event: AstrMessageEvent):
-        """
-        总结群聊
-        用法: /总结群聊
-        """
+    # --- 核心逻辑生成器 (供 Command 和 Tool 复用) ---
+    async def _summary_logic(self, event: AstrMessageEvent, hours: int = 24):
         group_id = event.get_group_id()
         if not group_id:
-            yield event.plain_result("⚠️ 请在群聊内使用本命令。")
+            yield event.plain_result("⚠️ 只有在群聊中才能使用总结功能哦。")
             return
-        group_info = await event.bot.api.call_action("get_group_info", **{"group_id":group_id})
-        logger.info(f"群信息:{group_info}")
-        yield event.plain_result("🌱 正在连接云端，下载近期群聊...")
 
-        # 1. 调用 API 获取消息
-        # 建议 count 设置大一点，然后在 Python 里通过时间过滤
-        raw_messages = await self.fetch_group_history(event.bot, group_id)
+        yield event.plain_result(f"🌱 正在连接神经云端，回溯最近 {hours} 小时的记忆...")
 
+        try:
+            group_info = await event.bot.api.call_action("get_group_info", group_id=group_id)
+        except:
+            group_info = {"group_name": "未知群聊"}
+
+        # 1. 获取消息
+        raw_messages = await self.fetch_group_history(event.bot, group_id, hours_limit=hours)
         if not raw_messages:
-            yield event.plain_result("⚠️ 无法获取群聊历史，可能是 Bot 刚刚启动或 API 不支持。")
+            yield event.plain_result("⚠️ 无法获取历史消息，可能是API受限或记录为空。")
             return
 
-        # 2. 本地数据处理
-        valid_msgs, top_users, trend, chat_log = self.process_messages(raw_messages, hours_limit=24)
-
+        # 2. 处理数据
+        valid_msgs, top_users, trend, chat_log = self.process_messages(raw_messages, hours_limit=hours)
         if not valid_msgs:
-            yield event.plain_result("最近 24 小时内似乎没有新的消息记录。")
+            yield event.plain_result(f"在最近 {hours} 小时内没有发现聊天记录。")
             return
 
-        # 限制日志长度，防止 LLM Token 溢出
         if len(chat_log) > self.msg_token_limit:
             logger.warning(f"LLM 日志长度超过限制:{len(chat_log)}，已截断。")
             chat_log = chat_log[-self.msg_token_limit:]
 
-        # 3. 构建 Prompt
+        # 3. LLM Prompt
         prompt = f"""
-        你是一个群聊记录员“纱织”。请根据以下的群聊记录（最近24小时），生成一份总结数据。
+        你是一个群聊记录员“{self.bot_name}”。请根据以下的群聊记录（最近{hours}小时），生成一份总结数据。
 
         【要求】：
-        1. 分析 3-8 个主要话题，每个话题包含：时间段（如 10:00 - 11:00）和简短内容。
-        2. 写一段“纱织姐姐的悄悄话”作为总结，风格温暖、感性。
+        1. 分析 3-8 个主要话题，每个话题包含：时间段（如 10:00-11:00）和简短内容。
+        2. 写一段“{self.bot_name}的悄悄话”作为总结，风格温暖、感性、毒舌或傲娇（根据你的人设）。
         3. 严格返回 JSON 格式：{{"topics": [{{"time_range": "...", "summary": "..."}}],"closing_remark": "..."}}
 
         【聊天记录】：
         {chat_log}
         """
 
-        yield event.plain_result(f"☁️ 已获取 {len(valid_msgs)} 条有效消息，正在生成分析报告...")
+        yield event.plain_result(f"☁️ 已获取 {len(valid_msgs)} 条消息，正在生成分析报告...")
 
         # 4. 调用 LLM
         try:
-            """调用llm回复"""
-            provider = (
-                    self.context.get_provider_by_id(self.config["provider_id"])
-                    or self.context.get_using_provider()
-            )
+            provider = self.context.get_provider_by_id(
+                self.config.get("provider_id")) or self.context.get_using_provider()
             if not provider:
                 yield event.plain_result("❌ 未配置用于文本生成任务的 LLM 提供商。")
                 return
@@ -359,26 +318,46 @@ class GroupSummaryPlugin(Star):
             logger.error(f"LLM Error: {e}")
             analysis_data = {"topics": [], "closing_remark": "纱织姐姐有点累了，没能写出总结..."}
 
+        # 5. 渲染
         try:
-            # 5. 组装数据并渲染
             render_data = {
                 "date": datetime.datetime.now().strftime("%Y.%m.%d"),
                 "top_users": top_users,
-                "trend": trend,  # Counter 对象可以直接在 Jinja2 中当字典用
+                "trend": trend,
                 "topics": analysis_data.get("topics", []),
                 "summary_text": analysis_data.get("closing_remark", ""),
-                "group_name":group_info.get("group_name"),
-                "bot_name":self.bot_name
+                "group_name": group_info.get("group_name", "群聊"),
+                "bot_name": self.bot_name
             }
-        except Exception as e:
-            logger.error(f"Traceback Error: {traceback.format_exc()}")
-            yield event.plain_result(f"❌ 沙雕LLM可能返回了不符合要求的数据")
-            return
-        logger.info(f"渲染数据: {render_data}")
-        options = {"quality": 95, "device_scale_factor_level": "ultra","viewport_width":500}
-        # 调用 AstrBot 渲染服务
-        try:
-            img_result = await self.html_render(TMPL,render_data,options=options)
+            options = {"quality": 95, "device_scale_factor_level": "ultra", "viewport_width": 500}
+            img_result = await self.html_render(TMPL, render_data, options=options)
             yield event.image_result(img_result)
         except Exception as e:
+            logger.error(f"Render Error: {traceback.format_exc()}")
             yield event.plain_result(f"❌ 渲染失败: {e}")
+
+    # --- 1. 指令入口 ---
+    @filter.command("总结群聊")
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
+    async def summarize_group(self, event: AstrMessageEvent):
+        """
+        手动指令：/总结群聊
+        """
+        async for result in self._summary_logic(event, hours=24):
+            yield result
+
+    # --- 2. Tool (Function Call) 入口 ---
+    @filter.llm_tool(name="group_summary_tool")
+    async def call_summary_tool(self, event: AstrMessageEvent, hours: int = 24):
+        """
+        总结当前群聊
+        当用户询问“今天群里发生了什么”、“总结一下群聊”、“大家在聊什么”时调用此工具。
+
+        Args:
+            hours (int): 总结过去多少小时的消息。默认为 24。
+        """
+        # Tool 的执行结果需要通过 yield 返回给用户
+        # 最后的 return 字符串会作为 Tool Output 给 LLM
+        async for result in self._summary_logic(event, hours=hours):
+            yield result
