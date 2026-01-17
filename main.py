@@ -158,10 +158,10 @@ class GroupSummaryPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
         self.config = config or {}
-        self.max_msg_count = self.config["max_msg_count"]
-        self.max_query_rounds = self.config["max_query_rounds"]
-        self.bot_name = self.config["bot_name"]
-        self.msg_token_limit = self.config["token_limit"]
+        self.max_msg_count = self.config["max_msg_count"] #最大获取消息数
+        self.max_query_rounds = self.config["max_query_rounds"] #最大查询轮数
+        self.bot_name = self.config["bot_name"] #机器人名称
+        self.msg_token_limit = self.config["token_limit"] #每次总结的token上限
 
     # --- 辅助方法：调用 NapCat API 获取历史消息 ---
     async def fetch_group_history(self, bot, group_id: str):
@@ -292,6 +292,10 @@ class GroupSummaryPlugin(Star):
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def summarize_group(self, event: AstrMessageEvent):
+        """
+        总结群聊
+        用法: /总结群聊
+        """
         group_id = event.get_group_id()
         if not group_id:
             yield event.plain_result("⚠️ 请在群聊内使用本命令。")
