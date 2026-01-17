@@ -290,6 +290,7 @@ class GroupSummaryPlugin(Star):
 
     @filter.command("总结群聊")
     @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
     async def summarize_group(self, event: AstrMessageEvent):
         group_id = event.get_group_id()
         if not group_id:
