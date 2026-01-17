@@ -201,14 +201,18 @@ class GroupSummaryPlugin(Star):
                 if not batch_msgs:
                     break # 没有更多消息了
 
-                # NapCat 返回通常是 [旧 -> 新] 的顺序
+                # NapCat 请求的倒数数据，是新->旧的顺序
                 # 我们需要把这批消息加到总列表里
                 # 注意：如果是翻页获取，新获取的批次应该放在总列表的最前面，或者最后统一按时间排序
                 all_messages.extend(batch_msgs)
 
                 # 如果这一批里最新的消息都已经超过了24小时，那说明后面的更不用看了，直接停止
-                oldest_msg_time = batch_msgs[0].get("time", 0)
-
+                oldest_msg_time = batch_msgs[-1].get("time", 0)
+                newest_msg_time = batch_msgs[0].get("time", 0)
+                logger.info(f"Round {round_idx+1}: 最旧消息时间: {oldest_msg_time}")
+                logger.info(f"Round {round_idx+1}: 最新消息时间: {newest_msg_time}")
+                if oldest_msg_time > newest_msg_time:
+                    oldest_msg_time = newest_msg_time
                 # 如果这一轮抓取的最旧消息都还在 cutoff 之前，说明已经抓够了时间范围
                 if oldest_msg_time < cutoff_time:
                     # 虽然这一批里可能有一部分有效，但下一轮肯定都是无效的了，标记结束
@@ -284,15 +288,8 @@ class GroupSummaryPlugin(Star):
         return valid_msgs, top_users, dict(trend_counter), chat_log
 
     @filter.command("总结群聊")
-    @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP | filter.PlatformAdapterType.QQOFFICIAL)
     @filter.permission_type(filter.PermissionType.ADMIN)
-    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
-    @filter.llm_tool(name="summary_group")  # 如果 name 不填，将使用函数名
     async def summarize_group(self, event: AstrMessageEvent):
-        '''总结群聊。
-
-
-        '''
         group_id = event.get_group_id()
         if not group_id:
             yield event.plain_result("⚠️ 请在群聊内使用本命令。")
@@ -318,6 +315,7 @@ class GroupSummaryPlugin(Star):
 
         # 限制日志长度，防止 LLM Token 溢出
         if len(chat_log) > 20000:
+            logger.warning(f"LLM 日志长度超过限制:{len(chat_log)}，已截断。")
             chat_log = chat_log[-20000:]
 
         # 3. 构建 Prompt
