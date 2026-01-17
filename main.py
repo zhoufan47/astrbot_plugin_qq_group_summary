@@ -158,7 +158,6 @@ class GroupSummaryPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
         self.config = config or {}
-        self.html_gen = HtmlGenerator()
         self.max_msg_count = self.config["max_msg_count"]
         self.max_query_rounds = self.config["max_query_rounds"]
         self.bot_name = self.config["bot_name"]
@@ -285,8 +284,15 @@ class GroupSummaryPlugin(Star):
         return valid_msgs, top_users, dict(trend_counter), chat_log
 
     @filter.command("总结群聊")
+    @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP | filter.PlatformAdapterType.QQOFFICIAL)
     @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
+    @filter.llm_tool(name="summary_group")  # 如果 name 不填，将使用函数名
     async def summarize_group(self, event: AstrMessageEvent):
+        '''总结群聊。
+
+
+        '''
         group_id = event.get_group_id()
         if not group_id:
             yield event.plain_result("⚠️ 请在群聊内使用本命令。")
@@ -311,15 +317,15 @@ class GroupSummaryPlugin(Star):
             return
 
         # 限制日志长度，防止 LLM Token 溢出
-        if len(chat_log) > 12000:
-            chat_log = chat_log[-12000:]
+        if len(chat_log) > 20000:
+            chat_log = chat_log[-20000:]
 
         # 3. 构建 Prompt
         prompt = f"""
         你是一个群聊记录员“纱织”。请根据以下的群聊记录（最近24小时），生成一份总结数据。
 
         【要求】：
-        1. 分析 3-8 个主要话题，每个话题包含：时间段（如 2026-01-01 10:00-2026-01-01 11:00）和简短内容。
+        1. 分析 3-8 个主要话题，每个话题包含：时间段（如 10:00 - 11:00）和简短内容。
         2. 写一段“纱织姐姐的悄悄话”作为总结，风格温暖、感性。
         3. 严格返回 JSON 格式：{{"topics": [{{"time_range": "...", "summary": "..."}}],"closing_remark": "..."}}
 
