@@ -3,8 +3,8 @@
 <div align="center">
 
 ![AstrBot Plugin](https://img.shields.io/badge/AstrBot-Plugin-green)
-![Python](https://img.shields.io/badge/Python-3.9+-blue)
-![License](https://img.shields.io/badge/License-MIT-orange)
+![Python](https://img.shields.io/badge/Python-3.13+-blue)
+![License](https://img.shields.io/badge/License-AGPLv3-orange)
 
 **一款清新美观的群聊总结生成器，支持数据可视化与 AI 智能摘要**
 
@@ -39,15 +39,16 @@ P.S. 其实本质是个小维日记的超级青春版
 ### 2. 安装插件
 将本插件文件夹 `group_summary` 放入 AstrBot 的 `data/plugins/` 目录下。
 
-### 3. 参数设置
-进入AstrBot webui进行相关参数设置。
 
 ```bash
 /AstrBot/data/plugins/group_summary/
 ├── __init__.py
+├── _conf_schema.json
 ├── main.py
 └── requirements.txt
 ```
+### 3. 参数设置
+进入AstrBot webui进行相关参数设置。
 
 ## 👥 贡献指南
 
@@ -57,6 +58,6 @@ P.S. 其实本质是个小维日记的超级青春版
 - 🔧 提交 Pull Request 改进代码
 
 
-## ❤️ Contributors
-- 感谢AstrBot框架的优秀支持，和AstrBot T2I Service。
-- 受Loping151的启发，开发了本插件。
+## ❤️ 鸣谢
+- 感谢 **AstrBot** 框架和 **AstrBot T2I Service** 。
+- 受 **Loping151** 的启发，开发了本插件。
