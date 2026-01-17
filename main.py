@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import datetime
 from collections import Counter
@@ -138,6 +139,32 @@ TMPL = '''
 '''
 
 
+# 解析JSON
+def _parse_llm_json(text: str) -> dict:
+    """
+    尝试从 LLM 的回复中提取并解析 JSON。
+    支持处理 markdown 代码块、前后无关文本等情况。
+    """
+    try:
+        # 1. 尝试直接解析（万一 LLM 很听话）
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    try:
+        # 2. 使用正则提取第一个 { 到最后一个 } 之间的内容
+        # [\s\S] 匹配任意字符包括换行符，* 贪婪匹配确保拿到完整的 JSON 对象
+        match = re.search(r"\{[\s\S]*\}", text)
+        if match:
+            json_str = match.group()
+            return json.loads(json_str)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. 如果还是失败，抛出异常或返回空
+    raise ValueError("无法从 LLM 回复中提取有效的 JSON 数据")
+
+
 @register("group_summary", "棒棒糖", "群聊总结生成器", "1.1.0")
 class GroupSummaryPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
@@ -255,6 +282,8 @@ class GroupSummaryPlugin(Star):
 
         return valid_msgs, top_users, dict(trend_counter), chat_log
 
+
+
     # --- 核心逻辑生成器 (供 Command 和 Tool 复用) ---
     async def _summary_logic(self, event: AstrMessageEvent, hours: int = 24):
         group_id = event.get_group_id()
@@ -309,8 +338,8 @@ class GroupSummaryPlugin(Star):
                 return
 
             response = await provider.text_chat(prompt, session_id=None)
-            clean_json = response.completion_text.replace("```json", "").replace("```", "").strip()
-            analysis_data = json.loads(clean_json)
+            logger.info(f"LLM 原始回复: {response.completion_text}")  # 建议保留日志以便调试
+            analysis_data = _parse_llm_json(response.completion_text)
             logger.info(f"LLM 回复: {response}")
         except Exception as e:
             logger.error(f"Traceback Error: {traceback.format_exc()}")
