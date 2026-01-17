@@ -2,11 +2,12 @@ import json
 import re
 import time
 import datetime
+import traceback
 from collections import Counter
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
-import traceback
+
 
 # --- 保持原有 HTML 模板不变 ---
 TMPL = '''
