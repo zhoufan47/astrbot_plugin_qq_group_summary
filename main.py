@@ -202,8 +202,7 @@ class GroupSummaryPlugin(Star):
                 # 如果这一轮抓取的最旧消息都还在 cutoff 之前，说明已经抓够了时间范围
                 if oldest_msg_time < cutoff_time:
                     # 虽然这一批里可能有一部分有效，但下一轮肯定都是无效的了，标记结束
-                    # (这里不break，让后面统一 process 过滤掉多余的即可)
-                    pass
+                    break
 
                 # 简单的进度日志
                 logger.info(f"Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
