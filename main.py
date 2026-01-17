@@ -161,6 +161,7 @@ class GroupSummaryPlugin(Star):
         self.max_msg_count = self.config["max_msg_count"]
         self.max_query_rounds = self.config["max_query_rounds"]
         self.bot_name = self.config["bot_name"]
+        self.msg_token_limit = self.config["token_limit"]
 
     # --- 辅助方法：调用 NapCat API 获取历史消息 ---
     async def fetch_group_history(self, bot, group_id: str):
@@ -314,9 +315,9 @@ class GroupSummaryPlugin(Star):
             return
 
         # 限制日志长度，防止 LLM Token 溢出
-        if len(chat_log) > 20000:
+        if len(chat_log) > self.msg_token_limit:
             logger.warning(f"LLM 日志长度超过限制:{len(chat_log)}，已截断。")
-            chat_log = chat_log[-20000:]
+            chat_log = chat_log[-self.msg_token_limit:]
 
         # 3. 构建 Prompt
         prompt = f"""

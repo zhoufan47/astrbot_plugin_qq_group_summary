@@ -19,6 +19,16 @@
         },
         "default": 20
     },
+      "token_limit": {
+        "description": "单次查询的消息token限制",
+        "type": "int",
+        "slider": {
+            "min": 10000,
+            "max": 100000,
+            "step": 2000
+        },
+        "default": 15000
+    },
     "provider_id": {
         "description": "用于分析画像的LLM提供商",
         "hint": "留空或者填写的提供商不存在时，则使用当前正在使用的LLM提供商",
