@@ -138,7 +138,7 @@ TMPL = '''
 '''
 
 
-@register("group_summary", "YourName", "群聊总结生成器", "1.3.0")
+@register("group_summary", "棒棒糖", "群聊总结生成器", "1.1.0")
 class GroupSummaryPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
