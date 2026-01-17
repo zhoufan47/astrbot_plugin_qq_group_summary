@@ -159,7 +159,7 @@ class GroupSummaryPlugin(Star):
 
         # 整理 LLM 日志文本
         chat_log = "\n".join([
-            f"[{datetime.datetime.fromtimestamp(m['time']).strftime('%H:%M')}] {m['name']}: {m['content']}"
+            f"[{datetime.datetime.fromtimestamp(m['time']).strftime('%Y.%m.%d %H:%M')}] {m['name']}: {m['content']}"
             for m in valid_msgs
         ])
 
