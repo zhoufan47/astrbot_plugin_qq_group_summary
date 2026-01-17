@@ -39,6 +39,9 @@ P.S. 其实本质是个小维日记的超级青春版
 ### 2. 安装插件
 将本插件文件夹 `group_summary` 放入 AstrBot 的 `data/plugins/` 目录下。
 
+### 3. 参数设置
+进入AstrBot webui进行相关参数设置。
+
 ```bash
 /AstrBot/data/plugins/group_summary/
 ├── __init__.py
