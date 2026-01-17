@@ -90,7 +90,7 @@ class GroupSummaryPlugin(Star):
                 # 假设返回的消息是按时间倒序或正序，我们需要找到最“旧”的一条的ID
                 # NapCat get_group_msg_history 通常返回的是 [oldest ... newest]
                 # 翻页时，通常取最旧一条的 seq 作为下一次的起点
-                message_seq = round_messages[0]["message_id"]
+                message_seq = round_messages[-1]["message_id"]
 
                 batch_msgs = round_messages
                 logger.info(f"Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
@@ -262,8 +262,7 @@ class GroupSummaryPlugin(Star):
     @filter.llm_tool(name="group_summary_tool")
     async def call_summary_tool(self, event: AstrMessageEvent, hours: int = 24):
         """
-        总结当前群聊
-        当用户询问“今天群里发生了什么”、“总结一下群聊”、“大家在聊什么”时调用此工具。
+        总结当前群聊。当用户询问“今天群里发生了什么”、“总结一下群聊”、“大家在聊什么”时调用此工具。
 
         Args:
             hours (int): 总结过去多少小时的消息。默认为 24。
