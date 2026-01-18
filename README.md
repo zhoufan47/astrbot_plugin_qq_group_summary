@@ -1,7 +1,10 @@
-# AstrBot Plugin: Group Summary (群聊总结)
+
 
 <div align="center">
 
+# AstrBot Plugin: Group Summary (群聊总结)
+
+![Visitor Count](https://visitor-badge.laobi.icu/badge?page_id=zhoufan47.astrbot_plugin_qq_group_summary)
 ![AstrBot Plugin](https://img.shields.io/badge/AstrBot-Plugin-green)
 ![Python](https://img.shields.io/badge/Python-3.13+-blue)
 ![License](https://img.shields.io/badge/License-AGPLv3-orange)
