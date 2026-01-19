@@ -5,6 +5,8 @@ import time
 import datetime
 import traceback
 from collections import Counter
+from tarfile import data_filter
+
 from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
@@ -132,14 +134,17 @@ class GroupSummaryPlugin(Star):
         valid_msgs = []
         user_counter = Counter()
         trend_counter = Counter()
-
+        filter_date_count = 0
+        filter_sys_msg_count = 0
         for msg in messages:
             ts = msg.get("time", 0)
             if ts < cutoff_time:
+                filter_date_count += 1
                 continue
 
             # 过滤QQ转发和图片信息
             if "[CQ:" in msg.get("raw_message"):
+                filter_sys_msg_count += 1
                 continue
 
             sender = msg.get("sender", {})
@@ -168,7 +173,7 @@ class GroupSummaryPlugin(Star):
             f"[{datetime.datetime.fromtimestamp(m['time']).strftime('%Y.%m.%d %H:%M')}] {m['name']}: {m['content']}"
             for m in valid_msgs
         ])
-        logger.info(f"群聊总结:共获取到{len(valid_msgs)}条有效消息")
+        logger.info(f"群聊总结:共获取到{len(valid_msgs)}条有效消息,过滤{filter_date_count}条时间超出限制消息,过滤{filter_sys_msg_count}条系统消息")
         return valid_msgs, top_users, dict(trend_counter), chat_log
 
 
