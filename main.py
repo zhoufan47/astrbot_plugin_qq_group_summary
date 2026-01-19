@@ -128,6 +128,7 @@ class GroupSummaryPlugin(Star):
     def process_messages(self, messages: list, hours_limit: int = 24):
         """纯 Python 统计数据"""
         cutoff_time = time.time() - (hours_limit * 3600)
+        logger.info(f"群聊总结:开始处理 {len(messages)} 条消息，聊天截止时间戳为: {cutoff_time} ")
         valid_msgs = []
         user_counter = Counter()
         trend_counter = Counter()
@@ -135,6 +136,10 @@ class GroupSummaryPlugin(Star):
         for msg in messages:
             ts = msg.get("time", 0)
             if ts < cutoff_time:
+                continue
+
+            # 过滤QQ转发和图片信息
+            if "[CQ:" in msg.get("raw_message"):
                 continue
 
             sender = msg.get("sender", {})
@@ -163,7 +168,7 @@ class GroupSummaryPlugin(Star):
             f"[{datetime.datetime.fromtimestamp(m['time']).strftime('%Y.%m.%d %H:%M')}] {m['name']}: {m['content']}"
             for m in valid_msgs
         ])
-
+        logger.info(f"群聊总结:共获取到{len(valid_msgs)}条有效消息")
         return valid_msgs, top_users, dict(trend_counter), chat_log
 
 
