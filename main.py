@@ -75,10 +75,11 @@ class GroupSummaryPlugin(Star):
                 # 2. 构造 API 参数
                 params = {
                     "group_id": group_id,
-                    "count": 200,
+                    "count": 100,
                     "message_seq":message_seq,
                     "reverseOrder": True,
                 }
+                logger.info(f"群聊总结:Round {round_idx+1}: 获取参数: {params}")
                 # 3. 调用 API
                 resp: dict = await bot.api.call_action("get_group_msg_history", **params)
 
@@ -90,8 +91,8 @@ class GroupSummaryPlugin(Star):
                 # 假设返回的消息是按时间倒序或正序，我们需要找到最“旧”的一条的ID
                 # NapCat get_group_msg_history 通常返回的是 [oldest ... newest]
                 # 翻页时，通常取最旧一条的 seq 作为下一次的起点
-                message_seq = round_messages[-1]["message_id"]
-                logger.info(f"群聊总结:本次获取到的最旧一条message_id:{message_seq}")
+                message_seq = round_messages[-1]["message_seq"]
+                logger.info(f"群聊总结:本次获取到的最旧一条message_seq:{message_seq}")
                 batch_msgs = round_messages
                 logger.info(f"群聊总结:Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
                 if not batch_msgs:
