@@ -206,7 +206,7 @@ class GroupSummaryPlugin(Star):
 
         if len(chat_log) > self.msg_token_limit:
             logger.warning(f"群聊总结:LLM 日志长度超过限制:{len(chat_log)}，已截断。")
-            chat_log = chat_log[-self.msg_token_limit:]
+            chat_log = chat_log[:self.msg_token_limit]
 
         # 3. LLM Prompt
         prompt = f"""
