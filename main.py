@@ -36,7 +36,7 @@ def _parse_llm_json(text: str) -> dict:
     raise ValueError("无法从 LLM 回复中提取有效的 JSON 数据")
 
 
-@register("group_summary", "棒棒糖", "群聊总结生成器", "1.1.0")
+@register("group_summary", "棒棒糖", "群聊总结", "1.1.3")
 class GroupSummaryPlugin(Star):
     def __init__(self, context: Context, config: dict = None):
         super().__init__(context)
@@ -52,9 +52,9 @@ class GroupSummaryPlugin(Star):
         try:
             with open(template_path, "r", encoding="utf-8") as f:
                 self.html_template = f.read()
-            logger.info(f"成功加载群聊总结模板: {template_path}")
+            logger.info(f"群聊总结:成功加载群聊总结模板: {template_path}")
         except FileNotFoundError:
-            logger.error(f"未找到模板文件: {template_path}")
+            logger.error(f"群聊总结:未找到模板文件: {template_path}")
             # 设置一个简单的兜底模板，防止崩溃
             self.html_template = "<h1>Template Not Found</h1>"
 
@@ -64,7 +64,7 @@ class GroupSummaryPlugin(Star):
         message_seq = 0
         cutoff_time = time.time() - (hours_limit * 3600)
 
-        logger.info(f"开始获取群 {group_id} 消息，目标上限: {self.max_msg_count}条 / {self.max_query_rounds}轮")
+        logger.info(f"群聊总结:开始获取群 {group_id} 消息，目标上限: {self.max_msg_count}条 / {self.max_query_rounds}轮")
 
         for round_idx in range(self.max_query_rounds):
             # 1. 检查总数是否超标
@@ -91,9 +91,9 @@ class GroupSummaryPlugin(Star):
                 # NapCat get_group_msg_history 通常返回的是 [oldest ... newest]
                 # 翻页时，通常取最旧一条的 seq 作为下一次的起点
                 message_seq = round_messages[-1]["message_id"]
-
+                logger.info(f"群聊总结:本次获取到的最旧一条message_id:{message_seq}")
                 batch_msgs = round_messages
-                logger.info(f"Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
+                logger.info(f"群聊总结:Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
                 if not batch_msgs:
                     break # 没有更多消息了
 
@@ -105,8 +105,8 @@ class GroupSummaryPlugin(Star):
                 # 如果这一批里最新的消息都已经超过了24小时，那说明后面的更不用看了，直接停止
                 oldest_msg_time = batch_msgs[-1].get("time", 0)
                 newest_msg_time = batch_msgs[0].get("time", 0)
-                logger.info(f"Round {round_idx+1}: 最旧消息时间: {oldest_msg_time}")
-                logger.info(f"Round {round_idx+1}: 最新消息时间: {newest_msg_time}")
+                logger.info(f"群聊总结:Round {round_idx+1}: 最旧消息时间: {oldest_msg_time}")
+                logger.info(f"群聊总结:Round {round_idx+1}: 最新消息时间: {newest_msg_time}")
                 if oldest_msg_time > newest_msg_time:
                     oldest_msg_time = newest_msg_time
                 # 如果这一轮抓取的最旧消息都还在 cutoff 之前，说明已经抓够了时间范围
@@ -115,11 +115,11 @@ class GroupSummaryPlugin(Star):
                     break
 
                 # 简单的进度日志
-                logger.info(f"Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
+                logger.info(f"群聊总结:Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
 
             except Exception as e:
-                logger.error(f"Error: {traceback.format_exc()}")
-                logger.info(f"Fetch loop error: {e}")
+                logger.error(f"群聊总结:Error: {traceback.format_exc()}")
+                logger.info(f"群聊总结:Fetch loop error: {e}")
                 break
 
         return all_messages
@@ -194,7 +194,7 @@ class GroupSummaryPlugin(Star):
             return
 
         if len(chat_log) > self.msg_token_limit:
-            logger.warning(f"LLM 日志长度超过限制:{len(chat_log)}，已截断。")
+            logger.warning(f"群聊总结:LLM 日志长度超过限制:{len(chat_log)}，已截断。")
             chat_log = chat_log[-self.msg_token_limit:]
 
         # 3. LLM Prompt
@@ -221,12 +221,12 @@ class GroupSummaryPlugin(Star):
                 return
 
             response = await provider.text_chat(prompt, session_id=None)
-            logger.info(f"LLM 原始回复: {response.completion_text}")  # 建议保留日志以便调试
+            logger.info(f"群聊总结:LLM 原始回复: {response.completion_text}")  # 建议保留日志以便调试
             analysis_data = _parse_llm_json(response.completion_text)
-            logger.info(f"LLM 回复: {response}")
+            logger.info(f"群聊总结:LLM 回复: {response}")
         except Exception as e:
-            logger.error(f"Traceback Error: {traceback.format_exc()}")
-            logger.error(f"LLM Error: {e}")
+            logger.error(f"群聊总结:Traceback Error: {traceback.format_exc()}")
+            logger.error(f"群聊总结:LLM Error: {e}")
             analysis_data = {"topics": [], "closing_remark": "纱织姐姐有点累了，没能写出总结..."}
 
         # 5. 渲染
@@ -244,7 +244,7 @@ class GroupSummaryPlugin(Star):
             img_result = await self.html_render(self.html_template, render_data, options=options)
             yield event.image_result(img_result)
         except Exception as e:
-            logger.error(f"Render Error: {traceback.format_exc()}")
+            logger.error(f"群聊总结:Render Error: {traceback.format_exc()}")
             yield event.plain_result(f"❌ 渲染失败: {e}")
 
     # --- 1. 指令入口 ---
