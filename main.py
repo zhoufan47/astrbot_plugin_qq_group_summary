@@ -212,7 +212,7 @@ class GroupSummaryPlugin(Star):
         """
 
         yield event.plain_result(f"☁️ 已获取 {len(valid_msgs)} 条消息，正在生成分析报告...")
-
+        logger.info(f"群聊总结:本次获取的聊天记录：{chat_log}")
         # 4. 调用 LLM
         try:
             provider = self.context.get_provider_by_id(
@@ -224,7 +224,6 @@ class GroupSummaryPlugin(Star):
             response = await provider.text_chat(prompt, session_id=None)
             logger.info(f"群聊总结:LLM 原始回复: {response.completion_text}")  # 建议保留日志以便调试
             analysis_data = _parse_llm_json(response.completion_text)
-            logger.info(f"群聊总结:LLM 回复: {response}")
         except Exception as e:
             logger.error(f"群聊总结:Traceback Error: {traceback.format_exc()}")
             logger.error(f"群聊总结:LLM Error: {e}")
