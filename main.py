@@ -86,14 +86,21 @@ class GroupSummaryPlugin(Star):
                 round_messages = resp["messages"]
                 if not round_messages:
                     break
-
+                batch_msgs = round_messages
                 # 更新 seq 以获取更早的消息
                 # 假设返回的消息是按时间倒序或正序，我们需要找到最“旧”的一条的ID
                 # NapCat get_group_msg_history 通常返回的是 [oldest ... newest]
                 # 翻页时，通常取最旧一条的 seq 作为下一次的起点
+                oldest_msg_time = batch_msgs[-1].get("time", 0)
+                newest_msg_time = batch_msgs[0].get("time", 0)
+                logger.info(f"群聊总结:Round {round_idx+1}: 最旧消息时间: {oldest_msg_time}")
+                logger.info(f"群聊总结:Round {round_idx+1}: 最新消息时间: {newest_msg_time}")
+                # 接口不兼容的预防代码
                 message_seq = round_messages[-1]["message_seq"]
+                if oldest_msg_time > newest_msg_time:
+                    message_seq = batch_msgs[0]["message_seq"]
+                    oldest_msg_time = newest_msg_time
                 logger.info(f"群聊总结:本次获取到的最旧一条message_seq:{message_seq}")
-                batch_msgs = round_messages
                 logger.info(f"群聊总结:Round {round_idx+1}: 获取到 {len(batch_msgs)} 条消息")
                 if not batch_msgs:
                     break # 没有更多消息了
@@ -103,13 +110,6 @@ class GroupSummaryPlugin(Star):
                 # 注意：如果是翻页获取，新获取的批次应该放在总列表的最前面，或者最后统一按时间排序
                 all_messages.extend(batch_msgs)
 
-                # 如果这一批里最新的消息都已经超过了24小时，那说明后面的更不用看了，直接停止
-                oldest_msg_time = batch_msgs[-1].get("time", 0)
-                newest_msg_time = batch_msgs[0].get("time", 0)
-                logger.info(f"群聊总结:Round {round_idx+1}: 最旧消息时间: {oldest_msg_time}")
-                logger.info(f"群聊总结:Round {round_idx+1}: 最新消息时间: {newest_msg_time}")
-                if oldest_msg_time > newest_msg_time:
-                    oldest_msg_time = newest_msg_time
                 # 如果这一轮抓取的最旧消息都还在 cutoff 之前，说明已经抓够了时间范围
                 if oldest_msg_time < cutoff_time:
                     # 虽然这一批里可能有一部分有效，但下一轮肯定都是无效的了，标记结束
