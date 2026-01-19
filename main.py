@@ -77,7 +77,7 @@ class GroupSummaryPlugin(Star):
                 # 2. 构造 API 参数
                 params = {
                     "group_id": group_id,
-                    "count": 100,
+                    "count": 200,
                     "message_seq":message_seq,
                     "reverseOrder": True,
                 }
